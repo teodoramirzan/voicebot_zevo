@@ -1,0 +1,70 @@
+# Mesaje Generale și Autentificare
+welcome_message=Bună ziua, ați sunat la clinica Sunset. Care este numele dumneavoastră, vă rog?
+name_not_found_for_extracted=Nu am găsit un pacient cu numele {name}. Puteți să repetați numele, vă rog, puțin mai clar?
+name_still_not_found_for_extracted=Nici de data aceasta nu am identificat numele {name}.
+ask_registration_consent=Doriți să vă înregistrăm ca pacient nou al clinicii Sunset? Vă rog să răspundeți cu da sau nu.
+registration_initiated=Am inițiat înregistrarea pentru {name}.
+registration_complete=Vă mulțumim! Înregistrarea dumneavoastră a fost finalizată cu succes.
+welcome_known_patient=Bine ați revenit, {name}!
+goodbye_message=Vă mulțumim că ați apelat la clinica Sunset! O zi frumoasă vă doresc!
+technical_difficulty_prompt=Am întâmpinat o mică problemă tehnică. Ați dori să încercăm din nou pasul anterior?
+stt_failed_retry=Nu am înțeles clar. Puteți repeta, vă rog?
+stt_failed_max_retries=Din păcate, nu am reușit să înțeleg după mai multe încercări. Să încercăm din nou acest pas.
+name_input_unclear=Nu am înțeles clar numele dumneavoastră. Puteți să-l rostiți din nou, vă rog?
+name_still_unclear_goodbye=Din păcate, tot nu am reușit să înțeleg numele. Vă rugăm să încercați să ne contactați telefonic la numărul de pe site. O zi bună!
+
+# Intenții Principale și Follow-up
+ask_action=Cu ce vă putem ajuta acum?
+follow_up_prompt_generic=Vă mai pot ajuta și cu altceva? Poate o altă programare sau o anulare? Sau doriți să încheiem?
+fallback_understanding_prompt=Ne pare rău, nu am înțeles exact solicitarea dumneavoastră. Ați putea reformula, vă rog?
+fallback_understanding_prompt_follow_up=Nu sunt sigur că am înțeles. Doriți o altă acțiune sau preferați să încheiem?
+
+# Flux Programare Nouă
+start_new_appointment_flow=Desigur, să facem o programare.
+ask_city_options_intro=Pentru început, vă rog să ne spuneți în ce oraș doriți programarea. Clinicile noastre deservesc următoarele localități: {valid_cities}.
+city_not_provided_retry_short=Vă rog, ce oraș alegeți?
+city_not_valid_specific=Ne pare rău, momentan nu avem o clinică în {city_name}.
+city_not_valid_retry_with_list=Ne pare rău, momentan nu avem o clinică în {city_name}. Puteți alege unul dintre orașele noastre: {valid_cities}.
+city_try_again_from_list_short=Vă rugăm să alegeți un oraș din lista pe care v-am prezentat-o mai devreme.
+city_selection_failed_after_retries_no_list=Din păcate, nu am putut stabili un oraș valid după mai multe încercări.
+city_selection_failed_no_input=Nu ați specificat un oraș. Nu putem continua fără această informație.
+city_input_unclear_retry_short=Nu am înțeles clar numele orașului. Puteți repeta, vă rog?
+city_selection_failed_unclear=Nu am reușit să identificăm un oraș valid.
+ask_specialty_or_symptom=La ce specializare doriți programarea sau pentru ce simptome? Specializările noastre includ: {specialties}.
+chosen_specialty_is=Am înțeles, ați ales {specialty} în orașul {city}. Să vedem ce date avem disponibile.
+symptom_based_specialty_suggestion=Am înțeles. În acest caz, o programare la {specialty} în orașul {city} ar fi indicată. Să verificăm datele disponibile.
+specialty_not_provided_retry=Ne puteți spune specializarea dorită sau simptomele pe care le aveți?
+specialty_not_recognized_retry=Hmm, nu am recunoscut această specializare sau descriere. Puteți încerca din nou sau alegeți una din specializările noastre: {specialties}?
+specialty_selection_failed=Se pare că nu reușim să identificăm o specializare validă.
+ask_date_options_natural=Când anume doriți programarea? Pentru {specialty} în {city}, avem următoarele date libere: {dates}.
+date_not_provided_retry=Vă rog să ne spuneți când ați dori programarea.
+date_unavailable_retry_natural=Data menționată nu pare să fie disponibilă sau nu am înțeles exact. Puteți încerca o altă formulare sau alegeți din lista noastră: {available_dates}.
+date_selection_failed=Nu am reușit să stabilim o dată validă după câteva încercări.
+no_dates_for_specialty_in_city=Ne pare rău, se pare că momentan nu sunt date disponibile pentru specializarea {specialty} în orașul {city}.
+confirm_appointment_details=Am notat: programare la {specialty} în {city}, pe data de {date}. Este corect? Vă rog să confirmați cu da sau nu.
+confirm_appointment_details_ASAP=Am găsit o programare pentru dumneavoastră {context_preference}, pe data de {date} la {specialty} în {city}. Este în regulă așa? Vă rog, da sau nu.
+appointment_confirmed=Excelent! Programarea pentru {date} la {specialty} în {city} a fost confirmată. Vă așteptăm cu drag!
+appointment_cancelled_by_user=Am înțeles. Programarea nu a fost efectuată.
+appointment_booking_failed=Oh, a apărut o mică problemă la salvarea programării. Vă rog să încercați din nou puțin mai târziu.
+confirmation_unclear_appointment_not_made=Răspunsul nu a fost suficient de clar, așa că programarea nu a fost făcută pentru moment.
+
+# Flux Anulare Programare
+start_cancellation_flow=Sigur, să ne ocupăm de anularea unei programări.
+no_appointments_found_for_name=Se pare că nu există programări active pe numele {name}.
+found_one_appointment=Am găsit o singură programare pe numele dumneavoastră: este la {specialty}, pe data de {date}, în orașul {city}.
+found_appointments_intro_natural=Am găsit {count} programări pe numele dumneavoastră. Haideți să vedem care dintre ele este:
+appointment_summary_natural={position}programarea numărul {number}, la {specialty}, pe data de {date}, în {city}.
+ask_cancel_selection_description=La care dintre aceste programări vă referiți? Puteți spune, de exemplu, cea de la pediatrie, programarea de pe 26 mai, prima sau numărul ei.
+cancellation_description_not_provided_retry=Vă rog să ne ajutați să identificăm programarea pe care doriți să o anulați.
+cancellation_description_not_clear_retry=Nu sunt sigur că am identificat corect programarea. Puteți încerca să o descrieți un pic diferit?
+cancellation_selection_failed=Din păcate, nu am reușit să identificăm programarea pentru anulare.
+understood_appointment_for_cancellation=Am înțeles. Deci doriți să anulăm programarea la {specialty} din data de {date}. Este corect?
+cancelation_confirm_prompt_specific=Pentru siguranță, doriți să confirmați anularea programării din data de {date} la {specialty}? Vă rog să răspundeți cu da sau nu.
+cancel_confirmed_specific=Perfect. Programarea din {date} la {specialty} a fost anulată cu succes.
+cancelation_aborted_by_user=Am înțeles. Anularea a fost oprită, iar programarea dumneavoastră rămâne activă.
+cancellation_failed_system_error=Oh, se pare că a apărut o eroare în sistem la anularea programării. Vă recomandăm să încercați din nou puțin mai târziu.
+confirmation_unclear_cancellation_not_done=Răspunsul nu a fost clar, așa că anularea nu a fost procesată.
+
+# Redirect și Operator
+specialty_not_found_suggest_operator=Specializarea căutată nu este disponibilă sau nu am putut-o identifica momentan. Dacă doriți, vă pot transfera la un operator uman pentru asistență suplimentară.
+invalid_selection_format_retry=Format invalid. Vă rugăm introduceți numărul programării sau o descriere mai clară.

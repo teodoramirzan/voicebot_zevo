@@ -1,0 +1,134 @@
+{
+    "cardiologie": {
+        "available_dates": [
+            "27.05.2025",
+            "03.06.2025",
+            "10.06.2025",
+            "17.06.2025",
+            "24.06.2025"
+        ]
+    },
+    "dermatologie": {
+        "available_dates": [
+            "29.05.2025",
+            "05.06.2025",
+            "12.06.2025",
+            "19.06.2025",
+            "26.06.2025"
+        ]
+    },
+    "pediatrie": {
+        "available_dates": [
+            "09.06.2025",
+            "16.06.2025",
+            "23.06.2025",
+            "30.06.2025"
+        ]
+    },
+    "oftalmologie": {
+        "available_dates": [
+            "04.06.2025",
+            "11.06.2025",
+            "18.06.2025",
+            "25.06.2025"
+        ]
+    },
+    "ortopedie": {
+        "available_dates": [
+            "30.05.2025",
+            "06.06.2025",
+            "13.06.2025",
+            "20.06.2025",
+            "27.06.2025"
+        ]
+    },
+    "neurologie": {
+        "available_dates": [
+            "07.06.2025",
+            "14.06.2025",
+            "21.06.2025"
+        ]
+    },
+    "orl": {
+        "available_dates": [
+            "08.06.2025",
+            "15.06.2025",
+            "22.06.2025",
+            "29.06.2025"
+        ]
+    },
+    "booked_dates": [
+        {
+            "name": "mihai ion",
+            "city": "iasi",
+            "specialty": "Dermatologie",
+            "date": "22.05.2025"
+        },
+        {
+            "name": "ana vasilescu",
+            "city": "bucuresti",
+            "specialty": "Oftalmologie",
+            "date": "21.05.2025"
+        },
+        {
+            "name": "radu stefanescu",
+            "city": "timisoara",
+            "specialty": "Ortopedie",
+            "date": "23.05.2025"
+        },
+        {
+            "name": "ioana marinescu",
+            "city": "brasov",
+            "specialty": "Neurologie",
+            "date": "24.05.2025"
+        },
+        {
+            "name": "victor anton",
+            "city": "constanta",
+            "specialty": "ORL",
+            "date": "25.05.2025"
+        },
+        {
+            "name": "maria dumitru",
+            "city": "sibiu",
+            "specialty": "Cardiologie",
+            "date": "27.05.2025"
+        },
+        {
+            "name": "andrei popescu",
+            "city": "bucuresti",
+            "specialty": "Pediatrie",
+            "date": "26.05.2025"
+        },
+        {
+            "name": "teodora mirzan",
+            "city": "constanta",
+            "specialty": "neurologie",
+            "date": "28.06.2025"
+        },
+        {
+            "name": "elena georgescu",
+            "city": "bucurești",
+            "specialty": "neurologie",
+            "date": "31.05.2025"
+        },
+        {
+            "name": "elena georgescu",
+            "city": "bucurești",
+            "specialty": "pediatrie",
+            "date": "02.06.2025"
+        },
+        {
+            "name": "teodora mârzan",
+            "city": "bucurești",
+            "specialty": "oftalmologie",
+            "date": "28.05.2025"
+        },
+        {
+            "name": "antonia dumitru",
+            "city": "bucurești",
+            "specialty": "orl",
+            "date": "01.06.2025"
+        }
+    ]
+}
