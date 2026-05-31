@@ -152,3 +152,28 @@ Raspuns:
 ```
 
 Pentru ca un numar real sa sune in acest endpoint trebuie configurat webhook-ul in serviciul telefonic Zevo sau in gateway-ul SIP/telefonie folosit. In lipsa credentialelor si a URL-ului public de webhook, proiectul ofera doar endpoint-ul local si logica de raspuns.
+
+## Mod evaluator in interfata web
+
+Interfata web pastreaza demo-ul live text/voce/telefon si adauga un tab separat, `Evaluator`, unde poti lipi o conversatie intreaga in format:
+
+```text
+USER: Vreau sa-mi blochez cardul.
+ASSISTANT: Pentru siguranta, spuneti ultimele 4 cifre.
+USER: Ultimele cifre sunt 4321.
+ASSISTANT: Cardul terminat in 4321 a fost blocat.
+```
+
+In bara din stanga poti alege modelul pentru fiecare task:
+
+- intentie;
+- status final;
+- neconcordante.
+
+Interfata afiseaza si recomandarile bazate pe rezultatele din dizertatie:
+
+- intentie: `openai_o3`, prompt `en v4`;
+- status final: `openai_o3`, prompt `ro v4`;
+- neconcordante: `gemini_2.5_flash`, prompt `ro v4`.
+
+Nota: in pagina web, evaluarea este calculata local pentru demo si selectorul de model este afisat ca metadate de comparatie. Pentru apeluri reale catre OpenAI, Gemini, Mistral sau Qwen, foloseste pipeline-ul CLI din repo-ul dizertatiei.

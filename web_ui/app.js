@@ -18,10 +18,15 @@ const micTitle = document.querySelector("#micTitle");
 const micStatus = document.querySelector("#micStatus");
 const kbStatus = document.querySelector("#kbStatus");
 const kbExamples = document.querySelector("#kbExamples");
+const recommendations = document.querySelector("#recommendations");
+const batchConversation = document.querySelector("#batchConversation");
+const batchTranscript = document.querySelector("#batchTranscript");
 
 let lastBotText = "";
 let currentMode = "text";
+let currentView = "live";
 let recording = false;
+let evaluationOptions = { models: {}, recommendations: {}, tasks: [] };
 
 async function api(path, body = {}) {
   const response = await fetch(path, {
@@ -42,18 +47,70 @@ async function api(path, body = {}) {
   return payload;
 }
 
-function addBubble(role, text) {
+function getModelConfig() {
+  const config = {};
+  document.querySelectorAll("[data-task-model]").forEach((select) => {
+    config[select.dataset.taskModel] = select.value;
+  });
+  return config;
+}
+
+async function loadEvaluationOptions() {
+  evaluationOptions = await api("/api/evaluation-options", {});
+  populateModelSelectors();
+  renderRecommendations();
+}
+
+function populateModelSelectors() {
+  const models = evaluationOptions.models || {};
+  document.querySelectorAll("[data-task-model]").forEach((select) => {
+    const task = select.dataset.taskModel;
+    const recommended = evaluationOptions.recommendations?.[task]?.model;
+    select.innerHTML = Object.entries(models)
+      .map(([key, model]) => {
+        const suffix = key === recommended ? " · recomandat" : "";
+        return `<option value="${escapeHtml(key)}">${escapeHtml(model.label)}${suffix}</option>`;
+      })
+      .join("");
+    select.value = recommended || Object.keys(models)[0] || "";
+  });
+  document.querySelector("#modelHint").textContent =
+    "În web demo, scorul se calculează local; selectorul arată modelul/promptul ales pentru comparație.";
+}
+
+function renderRecommendations() {
+  const recs = evaluationOptions.recommendations || {};
+  const models = evaluationOptions.models || {};
+  recommendations.innerHTML = Object.entries(recs)
+    .map(([task, rec]) => {
+      const model = models[rec.model]?.label || rec.model;
+      return `
+        <div class="rec-item">
+          <strong>${taskLabel(task)}: ${escapeHtml(model)}</strong>
+          <span>${escapeHtml(rec.lang)} · ${escapeHtml(rec.prompt_version)} · ${escapeHtml(rec.metric)}</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function addBubble(role, text, target = chat) {
   const bubble = document.createElement("div");
   bubble.className = `bubble ${role}`;
   const label = role === "assistant" ? "Bănuțel" : "Tu";
   bubble.innerHTML = `<small>${label}</small>${escapeHtml(text)}`;
-  chat.appendChild(bubble);
-  chat.scrollTop = chat.scrollHeight;
+  target.appendChild(bubble);
+  target.scrollTop = target.scrollHeight;
 }
 
 function renderTranscript(turns) {
   chat.innerHTML = "";
   turns.forEach((turn) => addBubble(turn.role, turn.text));
+}
+
+function renderMiniTranscript(turns) {
+  batchTranscript.innerHTML = "";
+  turns.forEach((turn) => addBubble(turn.role, turn.text, batchTranscript));
 }
 
 async function startSession() {
@@ -89,7 +146,20 @@ async function sendVoiceMessage(audioBase64) {
 }
 
 async function analyze() {
-  const payload = await api("/api/analyze", { session_id: sessionId });
+  const payload = await api("/api/analyze", {
+    session_id: sessionId,
+    model_config: getModelConfig(),
+  });
+  renderKnowledgeBase(payload.knowledge_base);
+  result.textContent = JSON.stringify(payload.pipeline, null, 2);
+}
+
+async function evaluateBatch() {
+  const payload = await api("/api/evaluate-conversation", {
+    conversation_text: batchConversation.value,
+    model_config: getModelConfig(),
+  });
+  renderMiniTranscript(payload.transcript);
   renderKnowledgeBase(payload.knowledge_base);
   result.textContent = JSON.stringify(payload.evaluation, null, 2);
 }
@@ -200,6 +270,23 @@ function setMode(mode) {
   });
 }
 
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll(".app-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.view === view);
+  });
+  document.querySelectorAll(".view-panel").forEach((panel) => {
+    panel.classList.toggle("hidden", panel.dataset.viewPanel !== view);
+  });
+}
+
+function loadSample() {
+  batchConversation.value = `USER: Vreau să-mi verific soldul și să primesc extrasul pe luna trecută.
+ASSISTANT: Pentru sold trebuie să confirmați identitatea. Puteți confirma codul primit prin SMS?
+USER: Da, confirm.
+ASSISTANT: Soldul disponibil este 2.450 de lei.`;
+}
+
 function showToast(message) {
   const toast = document.createElement("div");
   toast.className = "toast";
@@ -209,10 +296,18 @@ function showToast(message) {
 }
 
 function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, (char) => {
+  return String(value).replace(/[&<>"']/g, (char) => {
     const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" };
     return entities[char];
   });
+}
+
+function taskLabel(task) {
+  return {
+    intent: "Intent",
+    final_status: "Status final",
+    incongruities: "Neconcordanțe",
+  }[task] || task;
 }
 
 async function recordWav(durationMs) {
@@ -228,9 +323,7 @@ async function recordWav(durationMs) {
 
   source.connect(processor);
   processor.connect(audioContext.destination);
-
   await new Promise((resolve) => setTimeout(resolve, durationMs));
-
   processor.disconnect();
   source.disconnect();
   stream.getTracks().forEach((track) => track.stop());
@@ -327,6 +420,12 @@ form.addEventListener("submit", async (event) => {
 });
 
 document.querySelector("#analyze").addEventListener("click", () => analyze().catch((error) => showToast(error.message)));
+document.querySelector("#evaluateBatch").addEventListener("click", () => evaluateBatch().catch((error) => showToast(error.message)));
+document.querySelector("#clearBatch").addEventListener("click", () => {
+  batchConversation.value = "";
+  batchTranscript.innerHTML = "";
+});
+document.querySelector("#loadSample").addEventListener("click", loadSample);
 document.querySelector("#clearCache").addEventListener("click", () => clearCache().catch((error) => showToast(error.message)));
 document.querySelector("#newSession").addEventListener("click", () => startSession().catch((error) => showToast(error.message)));
 micButton.addEventListener("click", startDictation);
@@ -334,10 +433,14 @@ document.querySelector("#playLast").addEventListener("click", () => speak(lastBo
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => setMode(tab.dataset.mode));
 });
+document.querySelectorAll(".app-tab").forEach((tab) => {
+  tab.addEventListener("click", () => setView(tab.dataset.view));
+});
 voice.addEventListener("change", () => {
   voiceLabel.textContent = voice.value;
 });
 
+loadEvaluationOptions().catch((error) => showToast(error.message));
 loadPhoneStatus().catch(() => {
   phoneLabel.textContent = "local";
 });

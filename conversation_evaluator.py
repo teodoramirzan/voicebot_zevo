@@ -144,7 +144,21 @@ class ConversationEvaluator:
         if _has_any(full_text, ["trebuie sa mergeti", "semnati", "in aplicatie", "la sucursala", "link de resetare", "pas suplimentar"]):
             return _status("partial_rezolvata", "medium", "Voicebotul ofera un pas urmator, dar utilizatorul mai are actiuni de facut dupa apel.")
 
-        if _has_any(full_text, ["am blocat", "am actualizat", "am programat", "am trimis", "a fost confirmata", "am inregistrat", "soldul disponibil"]):
+        if _has_any(
+            full_text,
+            [
+                "am blocat",
+                "a fost blocat",
+                "am deblocat",
+                "a fost deblocat",
+                "am actualizat",
+                "am programat",
+                "am trimis",
+                "a fost confirmata",
+                "am inregistrat",
+                "soldul disponibil",
+            ],
+        ):
             return _status("rezolvata", "high", "Voicebotul confirma finalizarea cererii in cadrul conversatiei.")
 
         return _status("partial_rezolvata", "low", "Conversatia are raspunsuri relevante, dar nu contine o confirmare ferma de finalizare.")

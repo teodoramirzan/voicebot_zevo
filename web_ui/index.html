@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bănuțel | Voicebot bancar</title>
-    <link rel="stylesheet" href="styles.css?v=20260519-voice2" />
+    <link rel="stylesheet" href="styles.css?v=20260531-pipeline" />
   </head>
   <body>
     <main class="shell">
@@ -16,6 +16,11 @@
               <h1>Bănuțel</h1>
               <p>asistent vocal bancar</p>
             </div>
+          </div>
+
+          <div class="app-tabs" role="tablist" aria-label="Vedere demo">
+            <button class="app-tab active" data-view="live" type="button">Live</button>
+            <button class="app-tab" data-view="evaluator" type="button">Evaluator</button>
           </div>
 
           <div class="status-grid">
@@ -49,6 +54,23 @@
             </select>
           </label>
 
+          <section class="model-box">
+            <h2>Modele evaluare</h2>
+            <label class="field mini">
+              <span>Intent</span>
+              <select id="intentModel" data-task-model="intent"></select>
+            </label>
+            <label class="field mini">
+              <span>Status final</span>
+              <select id="finalStatusModel" data-task-model="final_status"></select>
+            </label>
+            <label class="field mini">
+              <span>Neconcordanțe</span>
+              <select id="incongruitiesModel" data-task-model="incongruities"></select>
+            </label>
+            <p id="modelHint">Încarc recomandările...</p>
+          </section>
+
           <div class="actions compact">
             <button id="newSession" class="primary" type="button">Sesiune nouă</button>
             <button id="clearCache" type="button">Golește cache</button>
@@ -62,7 +84,7 @@
           </div>
         </aside>
 
-        <section class="main-panel">
+        <section class="main-panel view-panel" data-view-panel="live">
           <header class="topbar">
             <div>
               <span class="eyebrow">Demo dizertație</span>
@@ -100,6 +122,31 @@
           </div>
         </section>
 
+        <section class="main-panel evaluator-panel view-panel hidden" data-view-panel="evaluator">
+          <header class="topbar">
+            <div>
+              <span class="eyebrow">Pipeline evaluare</span>
+              <h2>Conversație completă</h2>
+            </div>
+            <button id="loadSample" type="button">Exemplu</button>
+          </header>
+
+          <div class="batch-area">
+            <label class="field textarea-field">
+              <span>Transcript de evaluat</span>
+              <textarea id="batchConversation" spellcheck="false">USER: Vreau să-mi blochez cardul.
+ASSISTANT: Pentru siguranță, spuneți ultimele 4 cifre.
+USER: Ultimele cifre sunt 4321.
+ASSISTANT: Cardul terminat în 4321 a fost blocat.</textarea>
+            </label>
+            <div class="batch-actions">
+              <button id="evaluateBatch" class="primary" type="button">Evaluează conversația</button>
+              <button id="clearBatch" type="button">Curăță</button>
+            </div>
+            <div id="batchTranscript" class="mini-transcript"></div>
+          </div>
+        </section>
+
         <aside class="analysis">
           <div class="analysis-head">
             <h2>Rezultat</h2>
@@ -108,6 +155,10 @@
               <button id="analyze" class="primary" type="button">Analiză</button>
             </div>
           </div>
+          <section class="recommendation-box">
+            <h3>Recomandări</h3>
+            <div id="recommendations"></div>
+          </section>
           <section class="kb-box">
             <h3>Knowledge base</h3>
             <p id="kbStatus">Încarc exemple similare...</p>
@@ -119,6 +170,6 @@
     </main>
 
     <audio id="player" hidden></audio>
-    <script src="app.js?v=20260519-voice2"></script>
+    <script src="app.js?v=20260531-pipeline"></script>
   </body>
 </html>

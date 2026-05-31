@@ -9,9 +9,10 @@ import sys
 import wave
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 from urllib.parse import urlparse
 
+from conversation_evaluator import ConversationEvaluator, Turn
 from live_banking_demo import BankingVoicebotDemo
 from speech_normalizer import normalize_for_tts
 from zevo_stt import DEFAULT_DOMAIN_STT_GENERAL, speech_to_text_ws
@@ -36,6 +37,40 @@ STATIC_ROOT = ROOT / "web_ui"
 TTS_CACHE = ROOT / "tts_cache"
 SESSIONS: Dict[str, BankingVoicebotDemo] = {}
 
+EVALUATION_MODELS = {
+    "openai_o3": {"label": "OpenAI o3", "kind": "API"},
+    "gemini_2.5_flash": {"label": "Gemini 2.5 Flash", "kind": "API"},
+    "aya_expanse_8b": {"label": "Aya Expanse 8B", "kind": "local"},
+    "rollama2_7b": {"label": "RoLLaMA 2 7B", "kind": "local"},
+    "roberta_encoder": {"label": "XLM-RoBERTa encoder", "kind": "local"},
+    "mistral_7b": {"label": "Mistral 7B", "kind": "local"},
+    "qwen2.5_3b": {"label": "Qwen2.5 3B", "kind": "local"},
+}
+
+TASK_RECOMMENDATIONS = {
+    "intent": {
+        "model": "openai_o3",
+        "lang": "en",
+        "prompt_version": "v4",
+        "metric": "accuracy/F1 98.3%",
+        "source": "evaluation_report_intent.txt",
+    },
+    "final_status": {
+        "model": "openai_o3",
+        "lang": "ro",
+        "prompt_version": "v4",
+        "metric": "recomandare derivata din notebook; rezultate JSON lipsa",
+        "source": "outputs_final_status/final_status_experiments.ipynb",
+    },
+    "incongruities": {
+        "model": "gemini_2.5_flash",
+        "lang": "ro",
+        "prompt_version": "v4",
+        "metric": "binary F1 0.8219, type macro F1 0.8531",
+        "source": "outputs_incongruities/exp_inc_gemini_2.5_flash__ro__v4.json",
+    },
+}
+
 
 class BanutilHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -57,6 +92,8 @@ class BanutilHandler(SimpleHTTPRequestHandler):
             "/api/message": self._message,
             "/api/voice-message": self._voice_message,
             "/api/analyze": self._analyze,
+            "/api/evaluation-options": self._evaluation_options,
+            "/api/evaluate-conversation": self._evaluate_conversation,
             "/api/tts": self._tts,
             "/api/cache/clear": self._clear_cache,
             "/api/telephony/inbound": self._telephony_inbound,
@@ -78,7 +115,7 @@ class BanutilHandler(SimpleHTTPRequestHandler):
                 "bot": greeting,
                 "transcript": demo.state.transcript,
                 "knowledge_base": demo.knowledge_base_context(),
-                "name": "Bănuțel",
+                "name": "Banutel",
             }
         )
 
@@ -92,7 +129,13 @@ class BanutilHandler(SimpleHTTPRequestHandler):
         if not user_text:
             return self._send_json({"error": "Mesaj gol"}, status=400)
         bot_text = demo.handle_user_message(user_text)
-        self._send_json({"bot": bot_text, "transcript": demo.state.transcript, "knowledge_base": demo.knowledge_base_context()})
+        self._send_json(
+            {
+                "bot": bot_text,
+                "transcript": demo.state.transcript,
+                "knowledge_base": demo.knowledge_base_context(),
+            }
+        )
 
     def _voice_message(self):
         payload = self._read_json()
@@ -100,16 +143,16 @@ class BanutilHandler(SimpleHTTPRequestHandler):
         key = str(payload.get("key") or os.getenv("ZEVO_API_KEY", "")).strip()
         audio_base64 = str(payload.get("audio_base64", "")).strip()
         if not key:
-            return self._send_json({"error": "Lipsește ZEVO_API_KEY"}, status=400)
+            return self._send_json({"error": "Lipseste ZEVO_API_KEY"}, status=400)
         if not audio_base64:
-            return self._send_json({"error": "Lipsește audio_base64"}, status=400)
+            return self._send_json({"error": "Lipseste audio_base64"}, status=400)
 
         audio_data = base64.b64decode(audio_base64)
         stt_raw = asyncio.run(speech_to_text_ws(audio_data, key, DEFAULT_DOMAIN_STT_GENERAL))
         try:
             stt_payload = json.loads(stt_raw)
         except json.JSONDecodeError:
-            return self._send_json({"error": f"Răspuns STT invalid: {stt_raw}"}, status=502)
+            return self._send_json({"error": f"Raspuns STT invalid: {stt_raw}"}, status=502)
         if "error" in stt_payload:
             return self._send_json({"error": stt_payload.get("details") or stt_payload["error"]}, status=502)
 
@@ -133,15 +176,46 @@ class BanutilHandler(SimpleHTTPRequestHandler):
     def _analyze(self):
         payload = self._read_json()
         session_id = payload.get("session_id", "default")
+        model_config = payload.get("model_config") or {}
         demo = SESSIONS.get(session_id)
         if not demo:
-            return self._send_json({"error": "Sesiune inexistentă"}, status=404)
-        evaluation = demo.evaluator.evaluate(demo.state.transcript).to_dict()
+            return self._send_json({"error": "Sesiune inexistenta"}, status=404)
+        evaluation = build_pipeline_evaluation(demo.state.transcript, model_config)
         self._send_json(
             {
-                "evaluation": evaluation,
+                "evaluation": evaluation["results"],
+                "pipeline": evaluation,
                 "transcript": demo.state.transcript,
                 "knowledge_base": demo.knowledge_base_context(),
+            }
+        )
+
+    def _evaluation_options(self):
+        self._send_json(
+            {
+                "models": EVALUATION_MODELS,
+                "recommendations": TASK_RECOMMENDATIONS,
+                "tasks": ["intent", "final_status", "incongruities"],
+                "note": "In pagina web, evaluatorul ruleaza local pentru demo. Selectia de model arata configuratia si recomandarea pe task.",
+            }
+        )
+
+    def _evaluate_conversation(self):
+        payload = self._read_json()
+        text = str(payload.get("conversation_text", "")).strip()
+        model_config = payload.get("model_config") or {}
+        if not text:
+            return self._send_json({"error": "Lipseste conversatia de evaluat"}, status=400)
+        try:
+            transcript = parse_conversation_text(text)
+        except (ValueError, json.JSONDecodeError) as exc:
+            return self._send_json({"error": str(exc)}, status=400)
+        evaluation = build_pipeline_evaluation(transcript, model_config)
+        self._send_json(
+            {
+                "transcript": transcript,
+                "evaluation": evaluation,
+                "knowledge_base": knowledge_base_context_for(transcript),
             }
         )
 
@@ -153,7 +227,7 @@ class BanutilHandler(SimpleHTTPRequestHandler):
         if not text:
             return self._send_json({"error": "Text gol"}, status=400)
         if not key:
-            return self._send_json({"error": "Lipsește ZEVO_API_KEY"}, status=400)
+            return self._send_json({"error": "Lipseste ZEVO_API_KEY"}, status=400)
 
         TTS_CACHE.mkdir(exist_ok=True)
         digest = hashlib.sha256(f"{voice}:{text}".encode("utf-8")).hexdigest()[:24]
@@ -189,7 +263,7 @@ class BanutilHandler(SimpleHTTPRequestHandler):
                 "phone_number": phone_number,
                 "public_webhook_url": public_url,
                 "webhook_url": "/api/telephony/inbound",
-                "note": "Pentru apeluri reale, numărul Zevo trebuie să trimită transcriptul către webhook-ul public al acestui server.",
+                "note": "Pentru apeluri reale, numarul Zevo trebuie sa trimita transcriptul catre webhook-ul public al acestui server.",
             }
         )
 
@@ -201,7 +275,7 @@ class BanutilHandler(SimpleHTTPRequestHandler):
         if not demo.state.transcript:
             demo.start_message()
         if not user_text:
-            return self._send_json({"error": "Lipsește transcriptul apelului"}, status=400)
+            return self._send_json({"error": "Lipseste transcriptul apelului"}, status=400)
         bot_text = demo.handle_user_message(user_text)
         self._send_json(
             {
@@ -215,7 +289,7 @@ class BanutilHandler(SimpleHTTPRequestHandler):
         name = Path(path).name
         target = TTS_CACHE / name
         if not target.exists() or target.suffix.lower() != ".wav":
-            self.send_error(404, "Fișier audio inexistent")
+            self.send_error(404, "Fisier audio inexistent")
             return None
         data = target.read_bytes()
         self.send_response(200)
@@ -248,17 +322,87 @@ class BanutilHandler(SimpleHTTPRequestHandler):
             wav_file.writeframes(audio_data)
 
 
+def build_pipeline_evaluation(transcript: List[Turn], model_config: Dict[str, str]) -> Dict[str, object]:
+    raw_results = ConversationEvaluator().evaluate(transcript).to_dict()
+    tasks = {}
+    for task, task_result in raw_results.items():
+        recommendation = TASK_RECOMMENDATIONS[task]
+        selected_model = model_config.get(task) or model_config.get("model") or recommendation["model"]
+        if selected_model not in EVALUATION_MODELS:
+            selected_model = recommendation["model"]
+        tasks[task] = {
+            "model": selected_model,
+            "model_label": EVALUATION_MODELS[selected_model]["label"],
+            "recommended_model": recommendation["model"],
+            "is_recommended": selected_model == recommendation["model"],
+            "lang": model_config.get(f"{task}_lang") or recommendation["lang"],
+            "prompt_version": model_config.get(f"{task}_prompt_version") or recommendation["prompt_version"],
+            "recommendation": recommendation,
+            "result": task_result,
+        }
+    return {"results": raw_results, "tasks": tasks}
+
+
+def parse_conversation_text(text: str) -> List[Turn]:
+    text = text.strip()
+    if text.startswith("{") or text.startswith("["):
+        data = json.loads(text)
+        turns = data.get("turns", []) if isinstance(data, dict) else data
+        return normalize_turns(turns)
+
+    turns: List[Turn] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if ":" not in line:
+            raise ValueError("Fiecare replica trebuie sa fie de forma USER: text sau ASSISTANT: text.")
+        role, message = line.split(":", 1)
+        message = message.strip()
+        if message:
+            turns.append({"role": normalize_role(role), "text": message})
+    if not turns:
+        raise ValueError("Nu am gasit replici valide in conversatie.")
+    return turns
+
+
+def normalize_turns(turns) -> List[Turn]:
+    normalized = []
+    for turn in turns:
+        text = str(turn.get("text", "")).strip()
+        if text:
+            normalized.append({"role": normalize_role(str(turn.get("role", ""))), "text": text})
+    if not normalized:
+        raise ValueError("JSON-ul nu contine turns valide.")
+    return normalized
+
+
+def normalize_role(role: str) -> str:
+    normalized = role.strip().lower()
+    if normalized in {"user", "utilizator", "client", "tu"}:
+        return "user"
+    if normalized in {"assistant", "bot", "voicebot", "banutel", "bănuțel"}:
+        return "assistant"
+    raise ValueError(f"Rol necunoscut: {role}. Foloseste USER sau ASSISTANT.")
+
+
+def knowledge_base_context_for(transcript: List[Turn]) -> Dict[str, object]:
+    demo = BankingVoicebotDemo()
+    demo.state.transcript = transcript
+    return demo.knowledge_base_context()
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Interfață web pentru demo-ul Bănuțel.")
+    parser = argparse.ArgumentParser(description="Interfata web pentru demo-ul Banutel.")
     parser.add_argument("--port", type=int, default=8787)
     args = parser.parse_args()
 
     if not STATIC_ROOT.exists():
-        raise SystemExit(f"Lipsește directorul UI: {STATIC_ROOT}")
+        raise SystemExit(f"Lipseste directorul UI: {STATIC_ROOT}")
 
     server = ThreadingHTTPServer(("127.0.0.1", args.port), BanutilHandler)
-    print(f"Bănuțel pornește la http://127.0.0.1:{args.port}")
-    print("Apasă Ctrl+C ca să oprești serverul.")
+    print(f"Banutel porneste la http://127.0.0.1:{args.port}")
+    print("Apasa Ctrl+C ca sa opresti serverul.")
     server.serve_forever()
 
 
