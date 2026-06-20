@@ -86,6 +86,7 @@ async def speech_to_text_ws(audio_data, api_key, domain,
 
             offset = 0
             last_response = None
+            best_partial = ""
 
             # Audio-ul este mic (aprox. 3 secunde), deci îl trimitem complet
             # fără un round-trip WebSocket după fiecare chunk. Răspunsurile
@@ -104,8 +105,11 @@ async def speech_to_text_ws(audio_data, api_key, domain,
             deadline = loop.time() + 15
             while loop.time() < deadline:
                 remaining = deadline - loop.time()
+                # După primul transcript parțial mai acordăm o secundă pentru
+                # un rezultat complet sau o versiune parțială mai nouă.
+                wait_timeout = min(remaining, 1.0) if best_partial else remaining
                 try:
-                    final_response = await asyncio.wait_for(websocket.recv(), timeout=remaining)
+                    final_response = await asyncio.wait_for(websocket.recv(), timeout=wait_timeout)
                 except asyncio.TimeoutError:
                     break
                 except websockets.exceptions.ConnectionClosed:
@@ -124,6 +128,21 @@ async def speech_to_text_ws(audio_data, api_key, domain,
                     return final_response
                 if final_payload.get("text_pp") or final_payload.get("text"):
                     return final_response
+
+                partial_text = str(final_payload.get("partial") or "").strip()
+                if partial_text:
+                    best_partial = partial_text
+
+            if best_partial:
+                print(
+                    f"({datetime.now().strftime('%H:%M:%S')}) "
+                    f"STT: folosesc ultimul transcript parțial: {best_partial}"
+                )
+                return json.dumps({
+                    "text": best_partial,
+                    "text_pp": best_partial,
+                    "source": "partial",
+                }, ensure_ascii=False)
 
             print(
                 f"({datetime.now().strftime('%H:%M:%S')}) "
