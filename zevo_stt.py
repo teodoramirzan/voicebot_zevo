@@ -85,24 +85,73 @@ async def speech_to_text_ws(audio_data, api_key, domain,
                 return json.dumps({"error": "Tip de răspuns inițial neașteptat", "details": "Serverul nu a răspuns cu un string la configurare."})
 
             offset = 0
+            best_transcript_response = None
+            last_response = None
+
             while offset < len(audio_data):
                 chunk = audio_data[offset:offset + chunk_size]
                 await websocket.send(chunk)
-                response = await websocket.recv() 
+                response = await websocket.recv()
+                last_response = response
+
                 if isinstance(response, str):
                     try:
                         resp_json = json.loads(response)
+                        if resp_json.get("text_pp") or resp_json.get("text"):
+                            best_transcript_response = response
+                        if "error" in resp_json or resp_json.get("status") == "error":
+                            return response
                         if "status" in resp_json and resp_json["status"] != "ok":
-                             print(f"({datetime.now().strftime('%H:%M:%S')}) STT Mesaj Zevo în timpul transcrierii (status ne-ok): {response}")
-                        elif "message" in resp_json and resp_json["message"] not in ["ok", "waiting for audio", "processing"]: 
-                             print(f"({datetime.now().strftime('%H:%M:%S')}) STT Mesaj Zevo în timpul transcrierii: {response}")
+                            print(f"({datetime.now().strftime('%H:%M:%S')}) STT Mesaj Zevo în timpul transcrierii (status ne-ok): {response}")
+                        elif "message" in resp_json and resp_json["message"] not in ["ok", "waiting for audio", "processing"]:
+                            print(f"({datetime.now().strftime('%H:%M:%S')}) STT Mesaj Zevo în timpul transcrierii: {response}")
                     except json.JSONDecodeError:
-                         pass 
+                        pass
                 offset += chunk_size
 
-            await websocket.send('{"eof" : 1}') 
-            final_response = await websocket.recv() 
-            return final_response
+            await websocket.send(json.dumps({"eof": 1}))
+
+            # Zevo poate trimite unul sau mai multe mesaje "processing" după EOF.
+            # Așteptăm explicit cadrul care conține transcriptul, nu presupunem că
+            # primul răspuns de după EOF este rezultatul final.
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + 15
+            while loop.time() < deadline:
+                remaining = deadline - loop.time()
+                try:
+                    final_response = await asyncio.wait_for(websocket.recv(), timeout=remaining)
+                except asyncio.TimeoutError:
+                    break
+                except websockets.exceptions.ConnectionClosed:
+                    break
+
+                last_response = final_response
+                if not isinstance(final_response, str):
+                    continue
+
+                try:
+                    final_payload = json.loads(final_response)
+                except json.JSONDecodeError:
+                    continue
+
+                if "error" in final_payload or final_payload.get("status") == "error":
+                    return final_response
+                if final_payload.get("text_pp") or final_payload.get("text"):
+                    return final_response
+
+            # Unele versiuni ale serviciului trimit transcriptul ca rezultat
+            # intermediar, înainte ca serverul să confirme EOF.
+            if best_transcript_response:
+                return best_transcript_response
+
+            print(
+                f"({datetime.now().strftime('%H:%M:%S')}) "
+                f"STT: Zevo nu a trimis transcript după EOF. Ultimul răspuns: {last_response}"
+            )
+            return json.dumps({
+                "error": "Zevo STT nu a returnat transcript",
+                "details": str(last_response),
+            }, ensure_ascii=False)
 
     except websockets.exceptions.ConnectionClosed as e: 
         print(f"({datetime.now().strftime('%H:%M:%S')}) STT Eroare critică: Conexiunea WebSocket închisă: {e.reason} (cod: {e.code})")
