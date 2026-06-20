@@ -242,9 +242,9 @@ function startDictation() {
   recording = true;
   micButton.classList.add("listening");
   micTitle.textContent = "Ascult...";
-  micStatus.textContent = "Vorbește acum. Înregistrarea se oprește automat după 4 secunde.";
+  micStatus.textContent = "Vorbește acum. Înregistrarea se oprește automat după 3 secunde.";
 
-  recordWav(4000)
+  recordWav(3000)
     .then((audioBase64) => {
       micTitle.textContent = "Trimit către Zevo STT...";
       micStatus.textContent = "Aștept transcrierea.";
