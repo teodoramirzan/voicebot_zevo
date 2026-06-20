@@ -85,28 +85,14 @@ async def speech_to_text_ws(audio_data, api_key, domain,
                 return json.dumps({"error": "Tip de răspuns inițial neașteptat", "details": "Serverul nu a răspuns cu un string la configurare."})
 
             offset = 0
-            best_transcript_response = None
             last_response = None
 
+            # Audio-ul este mic (aprox. 3 secunde), deci îl trimitem complet
+            # fără un round-trip WebSocket după fiecare chunk. Răspunsurile
+            # intermediare rămân în coadă și sunt procesate după EOF.
             while offset < len(audio_data):
                 chunk = audio_data[offset:offset + chunk_size]
                 await websocket.send(chunk)
-                response = await websocket.recv()
-                last_response = response
-
-                if isinstance(response, str):
-                    try:
-                        resp_json = json.loads(response)
-                        if resp_json.get("text_pp") or resp_json.get("text"):
-                            best_transcript_response = response
-                        if "error" in resp_json or resp_json.get("status") == "error":
-                            return response
-                        if "status" in resp_json and resp_json["status"] != "ok":
-                            print(f"({datetime.now().strftime('%H:%M:%S')}) STT Mesaj Zevo în timpul transcrierii (status ne-ok): {response}")
-                        elif "message" in resp_json and resp_json["message"] not in ["ok", "waiting for audio", "processing"]:
-                            print(f"({datetime.now().strftime('%H:%M:%S')}) STT Mesaj Zevo în timpul transcrierii: {response}")
-                    except json.JSONDecodeError:
-                        pass
                 offset += chunk_size
 
             await websocket.send(json.dumps({"eof": 1}))
@@ -138,11 +124,6 @@ async def speech_to_text_ws(audio_data, api_key, domain,
                     return final_response
                 if final_payload.get("text_pp") or final_payload.get("text"):
                     return final_response
-
-            # Unele versiuni ale serviciului trimit transcriptul ca rezultat
-            # intermediar, înainte ca serverul să confirme EOF.
-            if best_transcript_response:
-                return best_transcript_response
 
             print(
                 f"({datetime.now().strftime('%H:%M:%S')}) "
